@@ -58,7 +58,7 @@ def unpack_packet(raw_bytes: bytes):
     # === STUDENT CODE HERE ===
     if len(raw_bytes) < HEADER_SIZE :
         return None
-    
+
     magic_id, msg_type, seq_num, conn_id, length = struct.unpack(HEADER_FORMAT, raw_bytes[:HEADER_SIZE])
     payload = raw_bytes[HEADER_SIZE:HEADER_SIZE + length]
     return magic_id, msg_type, seq_num, conn_id, length, payload
@@ -100,6 +100,7 @@ def run_server(ip: str, port: int, magic: int, mss: int):
 
 
     filename = payload.decode()
+    seq = result[2]
     print(f"[SERVER] Request from {client_addr} for '{filename}' (conn_id={conn_id})")
 
     if not os.path.exists(filename):
@@ -123,7 +124,25 @@ def run_server(ip: str, port: int, magic: int, mss: int):
     # -----------------------------------------------------------------
 
     # === STUDENT CODE HERE (Stop-and-Wait Sender Loop) ===
+    with open(filename, 'rb') as opened_file:
+        while True:
+            data = opened_file.read(mss)
+            raw = pack_packet(magic, TYPE_DATA, seq, conn_id, bytes(data))
 
+            sock.sendto(raw, client_addr)
+
+            while True:
+                ack_packet = sock.recvfrom(HEADER_SIZE + mss)
+                result = unpack_packet(ack_packet[0])
+                if result is None:
+                    continue
+                r_magic, r_type, r_seq, r_conn, _, _ = result
+                if r_magic == magic and r_type == TYPE_ACK and r_seq == seq and r_conn == conn_id:
+                    break
+
+            seq = 1 if seq == 0 else 0
+            if len(ack_packet) < mss:
+                break
     # ====================================================
 
     print("[SERVER] Transfer complete. Closing socket.")
@@ -173,19 +192,33 @@ def run_client(server_ip: str, port: int, magic: int, filename: str):
         while True:
             data, _ = sock.recvfrom(HEADER_SIZE + 512)
             packet = unpack_packet(data)
-            if (packet is None or packet[2] == TYPE_ERROR):
+            if packet is None:
+                continue
+
+            r_magic, r_type, r_seq, r_conn, r_len, payload = packet
+            if r_magic != magic or r_conn != conn_id:
+                continue
+            if r_type == TYPE_ERROR:
+                print(f"[CLIENT] Erreur du serveur : {payload.decode()}")
+                sock.close()
                 return TYPE_ERROR
-            if (packet[3] == expected_seq):
-                opened_file.write(packet[4])
-                ack = pack_packet(magic, TYPE_ACK, expected_seq, conn_id, bytes(packet[4]))
+            if r_type != TYPE_DATA:
+                continue
+
+            ack = pack_packet(magic, TYPE_ACK, r_seq, conn_id, b"")
+            if r_seq == expected_seq:
+                opened_file.write(payload)
                 sock.sendto(ack, server_addr)
                 expected_seq = 1 if expected_seq == 0 else 0
-            if len(packet[4]) < 512:
-                break
+                if len(payload) < 512:
+                    break
+            else:
+                sock.sendto(ack, server_addr)
     # ======================================================
 
     print(f"[CLIENT] Successfully received '{output_filename}'. Closing socket.")
     sock.close()
+    return None
 
 
 # =====================================================================
