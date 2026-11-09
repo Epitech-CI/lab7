@@ -3,8 +3,8 @@
 COMP 445: Data Communications & Computer Networks
 Lab 7: Reliable UDP Starter Skeleton
 
-Name(s): GUERINAULT
-Student ID(s): 40374063
+Name(s): GUERINAULT, LAPIERRE
+Student ID(s): 40374063, 40374065
 
 Instructions:
   Complete the designated TODO sections below.
