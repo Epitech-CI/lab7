@@ -12,7 +12,6 @@ Instructions:
   Use only Python standard libraries.
 """
 
-from _typeshed import ReadableBuffer
 import socket
 import struct
 import argparse
@@ -45,7 +44,7 @@ def pack_packet(magic_id: int, msg_type: int, seq_num: int, conn_id: int, payloa
     Returns: Complete packet as bytes.
     """
     # === STUDENT CODE HERE ===
-    return struct.pack(HEADER_FORMAT, magic_id, msg_type, seq_num, conn_id, payload)
+    return struct.pack(HEADER_FORMAT, magic_id, msg_type, seq_num, conn_id, len(payload))
     # =========================
 
 
@@ -145,19 +144,19 @@ def run_client(server_ip: str, port: int, magic: int, filename: str):
 
     # === STUDENT CODE HERE (Stop-and-Wait Receiver Loop) ===
 
-    opened_file = open(output_filename, 'wb')
-    while(1):
-        data, _ = sock.recvfrom(HEADER_SIZE + 512)
-        packet = unpack_packet(data)
-        if (packet is None or packet[2] == TYPE_ERROR):
-            return TYPE_ERROR
-        if (packet[3] == expected_seq):
-            opened_file.write(packet[4])
-            ack = pack_packet(magic, TYPE_ACK, expected_seq, conn_id, bytes(packet[4]))
-            sock.sendto(ack, server_addr)
-            expected_seq = 1 if expected_seq == 0 else 0
-        if len(packet[4]) < 512:
-            break
+    with open(output_filename, 'wb') as opened_file:
+        while True:
+            data, _ = sock.recvfrom(HEADER_SIZE + 512)
+            packet = unpack_packet(data)
+            if (packet is None or packet[2] == TYPE_ERROR):
+                return TYPE_ERROR
+            if (packet[3] == expected_seq):
+                opened_file.write(packet[4])
+                ack = pack_packet(magic, TYPE_ACK, expected_seq, conn_id, bytes(packet[4]))
+                sock.sendto(ack, server_addr)
+                expected_seq = 1 if expected_seq == 0 else 0
+            if len(packet[4]) < 512:
+                break
     # ======================================================
 
     print(f"[CLIENT] Successfully received '{output_filename}'. Closing socket.")
