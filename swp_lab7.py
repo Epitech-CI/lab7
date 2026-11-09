@@ -44,7 +44,7 @@ def pack_packet(magic_id: int, msg_type: int, seq_num: int, conn_id: int, payloa
     Returns: Complete packet as bytes.
     """
     # === STUDENT CODE HERE ===
-    return struct.pack(HEADER_FORMAT, magic_id, msg_type, seq_num, conn_id, len(payload))
+    return struct.pack(HEADER_FORMAT, magic_id, msg_type, seq_num, conn_id, len(payload)) + payload
     # =========================
 
 
@@ -56,9 +56,12 @@ def unpack_packet(raw_bytes: bytes):
              Or None if raw_bytes is shorter than HEADER_SIZE.
     """
     # === STUDENT CODE HERE ===
-    if raw_bytes < HEADER_SIZE :
+    if len(raw_bytes) < HEADER_SIZE :
         return None
-    return struct.unpack(raw_bytes)
+    
+    magic_id, msg_type, seq_num, conn_id, length = struct.unpack(HEADER_FORMAT, raw_bytes[:HEADER_SIZE])
+    payload = raw_bytes[HEADER_SIZE:HEADER_SIZE + length]
+    return magic_id, msg_type, seq_num, conn_id, length, payload
     # =========================
 
 
