@@ -16,6 +16,7 @@ import socket
 import struct
 import argparse
 import os
+import hashlib
 import sys
 
 # Protocol Message Types
@@ -109,6 +110,8 @@ def run_server(ip: str, port: int, magic: int, mss: int):
         print("[ERROR] File not found.")
         sock.close()
         return
+    with open(filename, 'rb') as f:
+        print(f"[SERVER] Source: {os.path.getsize(filename)}B")
     # ============================================
 
     # -----------------------------------------------------------------
@@ -128,6 +131,7 @@ def run_server(ip: str, port: int, magic: int, mss: int):
         while True:
             data = opened_file.read(mss)
             raw = pack_packet(magic, TYPE_DATA, seq, conn_id, bytes(data))
+            print(f"[SERVER] DATA chunk: {len(data)}B (MSS={mss}B) | seq={seq}")
 
             sock.sendto(raw, client_addr)
 
@@ -137,7 +141,10 @@ def run_server(ip: str, port: int, magic: int, mss: int):
                 if result is None:
                     continue
                 r_magic, r_type, r_seq, r_conn, _, _ = result
+                if r_conn != conn_id:
+                    print(f"[SERVER] conn_id mismatch (got {r_conn}, expected {conn_id}), ignored.")
                 if r_magic == magic and r_type == TYPE_ACK and r_seq == seq and r_conn == conn_id:
+                    print(f"[SERVER] ACK seq={r_seq} (conn_id={r_conn})")
                     break
 
             seq = 1 if seq == 0 else 0
@@ -197,6 +204,7 @@ def run_client(server_ip: str, port: int, magic: int, filename: str):
 
             r_magic, r_type, r_seq, r_conn, r_len, payload = packet
             if r_magic != magic or r_conn != conn_id:
+                print(f"[CLIENT] Invalid magic/conn_id (magic={hex(r_magic)}, conn_id={r_conn}), ignored.")
                 continue
             if r_type == TYPE_ERROR:
                 print(f"[CLIENT] Erreur du serveur : {payload.decode()}")
@@ -207,6 +215,7 @@ def run_client(server_ip: str, port: int, magic: int, filename: str):
 
             ack = pack_packet(magic, TYPE_ACK, r_seq, conn_id, b"")
             if r_seq == expected_seq:
+                print(f"[CLIENT] DATA chunk: {len(payload)}B | seq={r_seq}")
                 opened_file.write(payload)
                 sock.sendto(ack, server_addr)
                 expected_seq = 1 if expected_seq == 0 else 0
@@ -217,6 +226,8 @@ def run_client(server_ip: str, port: int, magic: int, filename: str):
     # ======================================================
 
     print(f"[CLIENT] Successfully received '{output_filename}'. Closing socket.")
+    with open(output_filename, 'rb') as f:
+        print(f"[CLIENT] Received: {os.path.getsize(output_filename)}B")
     sock.close()
     return None
 
