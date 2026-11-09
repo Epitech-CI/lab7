@@ -56,9 +56,9 @@ def unpack_packet(raw_bytes: bytes):
              Or None if raw_bytes is shorter than HEADER_SIZE.
     """
     # === STUDENT CODE HERE ===
-    if (raw_bytes.size() < HEADER_SIZE) 
+    if raw_bytes < HEADER_SIZE :
         return None
-    return struct.unpack(raw_bytes);
+    return struct.unpack(raw_bytes)
     # =========================
 
 
@@ -82,7 +82,29 @@ def run_server(ip: str, port: int, magic: int, mss: int):
     # -----------------------------------------------------------------
     
     # === STUDENT CODE HERE (REQUEST Handling) ===
+    while True:
+        raw, client_addr = sock.recvfrom(HEADER_SIZE + mss)
+        result = unpack_packet(raw)
+        if result is None:
+            print("[SERVER] Packet too short, ignored.")
+            continue
 
+        magic_id, msg_type, seq_num, conn_id, length, payload = result
+        if magic != magic_id or msg_type != TYPE_REQUEST:
+            print("[SERVER] Invalid packet, ignored.")
+            continue
+        break
+
+
+    filename = payload.decode()
+    print(f"[SERVER] Request from {client_addr} for '{filename}' (conn_id={conn_id})")
+
+    if not os.path.exists(filename):
+        err = pack_packet(magic, TYPE_ERROR, 0, conn_id, b"File not found")
+        sock.sendto(err, client_addr)
+        print("[ERROR] File not found.")
+        sock.close()
+        return
     # ============================================
 
     # -----------------------------------------------------------------
