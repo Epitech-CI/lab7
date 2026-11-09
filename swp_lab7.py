@@ -141,7 +141,7 @@ def run_server(ip: str, port: int, magic: int, mss: int):
                     break
 
             seq = 1 if seq == 0 else 0
-            if len(ack_packet) < mss:
+            if len(data) < mss:
                 break
     # ====================================================
 
