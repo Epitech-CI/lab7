@@ -3,8 +3,8 @@
 COMP 445: Data Communications & Computer Networks
 Lab 7: Reliable UDP Starter Skeleton
 
-Name(s): GUERINAULT 
-Student ID(s): 40374063 
+Name(s): GUERINAULT
+Student ID(s): 40374063
 
 Instructions:
   Complete the designated TODO sections below.
@@ -12,6 +12,7 @@ Instructions:
   Use only Python standard libraries.
 """
 
+from _typeshed import ReadableBuffer
 import socket
 import struct
 import argparse
@@ -80,7 +81,7 @@ def run_server(ip: str, port: int, magic: int, mss: int):
     #   5. If the file does not exist on disk:
     #      Send an ERROR packet (TYPE_ERROR) back to the client and return.
     # -----------------------------------------------------------------
-    
+
     # === STUDENT CODE HERE (REQUEST Handling) ===
     while True:
         raw, client_addr = sock.recvfrom(HEADER_SIZE + mss)
@@ -143,7 +144,9 @@ def run_client(server_ip: str, port: int, magic: int, filename: str):
     # -----------------------------------------------------------------
 
     # === STUDENT CODE HERE (Send REQUEST) ===
-
+    filename_encoded = filename.encode()
+    packet = pack_packet(magic, TYPE_REQUEST, 0, conn_id, filename_encoded);
+    sock.sendto(packet, server_addr)
     # ========================================
 
     output_filename = f"received_{filename}"
@@ -164,6 +167,19 @@ def run_client(server_ip: str, port: int, magic: int, filename: str):
 
     # === STUDENT CODE HERE (Stop-and-Wait Receiver Loop) ===
 
+    opened_file = open(output_filename, 'wb')
+    while(1):
+        data, _ = sock.recvfrom(HEADER_SIZE + 512)
+        packet = unpack_packet(data)
+        if (packet is None or packet[2] == TYPE_ERROR):
+            return TYPE_ERROR
+        if (packet[3] == expected_seq):
+            opened_file.write(packet[4])
+            ack = pack_packet(magic, TYPE_ACK, expected_seq, conn_id, bytes(packet[4]))
+            sock.sendto(ack, server_addr)
+            expected_seq = 1 if expected_seq == 0 else 0
+        if len(packet[4]) < 512:
+            break
     # ======================================================
 
     print(f"[CLIENT] Successfully received '{output_filename}'. Closing socket.")
@@ -187,4 +203,3 @@ if __name__ == "__main__":
         run_server(args.ip, args.port, args.magic, args.mss)
     else:
         run_client(args.ip, args.port, args.magic, args.file)
-
