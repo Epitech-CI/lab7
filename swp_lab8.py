@@ -138,7 +138,11 @@ def run_server(ip: str, port: int, magic: int, timeout_sec: float, drop_data_idx
                 print(f"Packet {packet_counter} dropped")
             else:
                 sock.sendto(data_pkt, client_addr)
+            attempt_retransmittion = total_retransmissions
             while True:
+                if attempt_retransmittion + 5 == total_retransmissions:
+                    print("Too much retransmittion attempted for this packet, skipped.")
+                    break
                 try:
                     recv_packet, client_addr = sock.recvfrom(2048)
                     unpacked = unpack_packet(recv_packet)
@@ -250,7 +254,7 @@ def run_client(server_ip: str, port: int, magic: int, filename: str, drop_ack_id
     # -----------------------------------------------------------------
     print(f"[CLIENT] File saved as: {output_filename}")
     # === STUDENT CODE HERE (Print SHA-256 hash using compute_sha256) ===
-    print(compute_sha256(filename))
+    print(compute_sha256(output_filename))
     # ==================================================================
     sock.close()
 
