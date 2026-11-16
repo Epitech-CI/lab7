@@ -136,13 +136,15 @@ def run_server(ip: str, port: int, magic: int, timeout_sec: float, drop_data_idx
             # === STUDENT CODE HERE ===
             if packet_counter == drop_data_idx:
                 print(f"Packet {packet_counter} dropped")
+            else:
+                sock.sendto(data_pkt, client_addr)
             while True:
                 try:
                     recv_packet, client_addr = sock.recvfrom(2048)
                     unpacked = unpack_packet(recv_packet)
                     if unpacked and unpacked[UNPACK_MAGIC_ID] == magic and unpacked[UNPACK_CONN_ID] == conn_id and unpacked[UNPACK_MSG_TYPE] == TYPE_ACK and unpacked[UNPACK_SEQ_NUM] == seq_num:
                         break;
-                except TimeoutError:
+                except socket.timeout:
                     total_retransmissions += 1
                     print(f"[TIMEOUT] Seq #{seq_num} timed out! Retransmitting")
                     sock.sendto(data_pkt, client_addr)
