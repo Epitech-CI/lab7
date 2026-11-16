@@ -226,8 +226,13 @@ def run_client(server_ip: str, port: int, magic: int, filename: str, drop_ack_id
                 #     - Pack and send ACK packet (TYPE_ACK) with seq_num to server_addr.
                 # ---------------------------------------------------------
                 # === STUDENT CODE HERE ===
-                pass
+                if ack_counter == drop_ack_idx:
+                    print(f"ACK {ack_counter} dropped !")
+                else:
+                    data_pack = pack_packet(magic, TYPE_ACK, seq_num, conn_id, b"")
+                    sock.sendto(data_pack, server_addr)
                 # =========================
+
 
                 # Detect EOF: final packet received
                 if length < 512:
@@ -239,7 +244,7 @@ def run_client(server_ip: str, port: int, magic: int, filename: str, drop_ack_id
     # -----------------------------------------------------------------
     print(f"[CLIENT] File saved as: {output_filename}")
     # === STUDENT CODE HERE (Print SHA-256 hash using compute_sha256) ===
-
+    print(compute_sha256(filename))
     # ==================================================================
     sock.close()
 
