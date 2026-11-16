@@ -36,6 +36,13 @@ TYPE_ERROR   = 4
 HEADER_FORMAT = "!H B B I H"
 HEADER_SIZE = struct.calcsize(HEADER_FORMAT)  # 10 bytes
 
+UNPACK_MAGIC_ID = 0
+UNPACK_MSG_TYPE = 1
+UNPACK_SEQ_NUM = 2
+UNPACK_CONN_ID = 3
+UNPACK_LENGHT = 4
+UNPACK_PAYLOAD = 5
+
 
 # =====================================================================
 # PROVIDED: Binary Packing, Unpacking & Integrity Helpers
@@ -96,7 +103,7 @@ def run_server(ip: str, port: int, magic: int, timeout_sec: float, drop_data_idx
     #   Use sock.settimeout(...) to set the socket timeout to timeout_sec.
     # -----------------------------------------------------------------
     # === STUDENT CODE HERE ===
-    pass
+    sock.settimeout(timeout_sec)
     # =========================
 
     seq_num = 0
@@ -127,7 +134,20 @@ def run_server(ip: str, port: int, magic: int, timeout_sec: float, drop_data_idx
             #          Retransmit data_pkt using sock.sendto().
             # -------------------------------------------------------------
             # === STUDENT CODE HERE ===
-            pass
+            if packet_counter == drop_data_idx:
+                print(f"Packet {packet_counter} dropped")
+                continue
+            while True:
+                try:
+                    recv_packet, client_addr = sock.recvfrom(2048)
+                    unpacked = unpack_packet(recv_packet)
+                    if unpacked and unpacked[UNPACK_MAGIC_ID] != magic and unpacked[UNPACK_CONN_ID] == conn_id and unpacked[UNPACK_MSG_TYPE] == TYPE_ACK and unpacked[UNPACK_SEQ_NUM] == seq_num:
+                        break;
+                except TimeoutError:
+                    total_retransmissions += 1
+                    print(f"[TIMEOUT] Seq #{seq_num} timed out! Retransmitting")
+                    sock.sendto(data_pkt, client_addr)
+
             # =========================
 
             # Toggle sequence number (0 -> 1 -> 0)
@@ -143,7 +163,7 @@ def run_server(ip: str, port: int, magic: int, timeout_sec: float, drop_data_idx
     # -----------------------------------------------------------------
     print(f"[SERVER] Transfer complete. Total Retransmissions: {total_retransmissions}")
     # === STUDENT CODE HERE (Print SHA-256 hash using compute_sha256) ===
-
+    print(compute_sha256(filename))
     # ==================================================================
     sock.close()
 
