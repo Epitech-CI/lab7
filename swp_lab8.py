@@ -3,8 +3,8 @@
 COMP 445: Data Communications & Computer Networks
 Lab 8: Reliable UDP (Timeouts, Loss Recovery & Integrity)
 
-Name(s): _____________________________________________
-Student ID(s): _______________________________________
+Name(s): GUERINAULT, LAPIERRE
+Student ID(s): 40374063, 40374065
 
 Instructions:
   The binary packing and unpacking functions from lab 7 are provided below.
