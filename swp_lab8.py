@@ -215,7 +215,11 @@ def run_client(server_ip: str, port: int, magic: int, filename: str, drop_ack_id
                 #     - DO NOT write payload to f_out!
                 # ---------------------------------------------------------
                 # === STUDENT CODE HERE ===
-                pass
+                if seq_num == expected_seq:
+                    f_out.write(payload)
+                    expected_seq ^= 1
+                else:
+                    print(f"[CLIENT] Duplicate Seq #{seq_num} detected! Discarding redundant payload.")
                 # =========================
 
                 # ---------------------------------------------------------
