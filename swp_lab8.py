@@ -230,10 +230,11 @@ def run_client(server_ip: str, port: int, magic: int, filename: str, drop_ack_id
                 # ---------------------------------------------------------
                 # === STUDENT CODE HERE ===
                 if ack_counter == drop_ack_idx:
-                    print(f"ACK {ack_counter} dropped !")
+                    print(f"Dropping ACK #{ack_counter} for Seq #{seq_num}!")
                 else:
                     data_pack = pack_packet(magic, TYPE_ACK, seq_num, conn_id, b"")
                     sock.sendto(data_pack, server_addr)
+                    print(f"[CLIENT] Sent ACK for Seq #{seq_num}")
                 # =========================
 
 
