@@ -16,7 +16,7 @@ import sys
 TARGET_SCRIPT = "swp_lab8.py"
 
 def run_command(cmd: str):
-    res = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    res = subprocess.run(cmd, shell=True, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if res.returncode != 0:
         print(f"[ERROR]: {cmd}\n{res.stderr}")
     return res.stdout
@@ -24,8 +24,8 @@ def run_command(cmd: str):
 def apply_netem(delay: str, jitter: str, loss: str):
     print(f"[*] Applying Netem rule: Delay={delay} Jitter={jitter} Loss={loss}")
     # Clear existing rules on both ends
-    run_command("sudo ip netns exec ns_server tc qdisc del dev veth_s root 2>/dev/null || true")
-    run_command("sudo ip netns exec ns_client tc qdisc del dev veth_c root 2>/dev/null || true")
+    run_command("ip netns exec ns_server tc qdisc del dev veth_s root 2>/dev/null || true")
+    run_command("ip netns exec ns_client tc qdisc del dev veth_c root 2>/dev/null || true")
 
     if not delay and not loss:
         return
@@ -40,8 +40,8 @@ def apply_netem(delay: str, jitter: str, loss: str):
         netem_params += f" loss {loss}"
 
     # Apply symmetrically so RTT = 2 * one-way delay
-    run_command(f"sudo ip netns exec ns_server tc qdisc add dev veth_s root netem {netem_params}")
-    run_command(f"sudo ip netns exec ns_client tc qdisc add dev veth_c root netem {netem_params}")
+    run_command(f"ip netns exec ns_server tc qdisc add dev veth_s root netem {netem_params}")
+    run_command(f"ip netns exec ns_client tc qdisc add dev veth_c root netem {netem_params}")
 
 def create_test_file(filename: str, size_bytes: int):
     if not os.path.exists(filename) or os.path.getsize(filename) != size_bytes:
@@ -72,24 +72,30 @@ def main():
 
     # 2. Launch server inside ns_server
     print(f"[*] Starting server in 'ns_server' using {TARGET_SCRIPT}...")
-    server_cmd = (
-        f"sudo ip netns exec ns_server python3 {TARGET_SCRIPT} "
-        f"--mode server --ip 10.0.0.2 --port 9090 --magic {hex(args.magic)} --timeout 0.8"
-    )
-    server_proc = subprocess.Popen(server_cmd, shell=True)
+    server_cmd = [
+        "ip", "netns", "exec", "ns_server", "python3", TARGET_SCRIPT,
+        "--mode", "server", "--ip", "10.0.0.2", "--port", "9090",
+        "--magic", hex(args.magic), "--timeout", "0.8",
+    ]
+    server_proc = subprocess.Popen(server_cmd, stdin=subprocess.DEVNULL)
     time.sleep(0.5)
 
     # 3. Launch client inside ns_client and measure wall-clock duration
     print(f"[*] Transferring {args.size_kb} KB inside 'ns_client'...")
-    client_cmd = (
-        f"sudo ip netns exec ns_client python3 {TARGET_SCRIPT} "
-        f"--mode client --ip 10.0.0.2 --port 9090 --magic {hex(args.magic)} --file {test_file}"
-    )
+    client_cmd = [
+        "ip", "netns", "exec", "ns_client", "python3", TARGET_SCRIPT,
+        "--mode", "client", "--ip", "10.0.0.2", "--port", "9090",
+        "--magic", hex(args.magic), "--file", test_file,
+    ]
 
     start_time = time.time()
-    res = subprocess.run(client_cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    res = subprocess.run(client_cmd, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     elapsed_time = time.time() - start_time
     server_proc.terminate()
+    try:
+        server_proc.wait(timeout=2)
+    except subprocess.TimeoutExpired:
+        server_proc.kill()
 
     if res.returncode != 0:
         print(f"[!] Transfer failed:\n{res.stderr}")
